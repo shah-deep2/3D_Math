@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Function Plot</title>
+    
+  <!-- 
+
+
+    Run: python -m http.server
+    In: C:\Users\Deep Shah\Documents\Repos\ML_SVM\svmjs
+    Visit: http://localhost:8000/threejs/svm_curve.html
+
+
+   -->
+
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+
+<style>
+
+    #plot {
+        position: fixed; 
+        top: 0; 
+        left: 0;
+    }
+
+    .dg.ac {
+        z-index: 1;
+    }
+</style>
+    
+<canvas id="plot"></canvas>
+
+
+<script type="module">
+
+    import * as THREE from "https://cdn.skypack.dev/three@0.133.1";
+    import { OrbitControls } from "https://cdn.skypack.dev/three@0.133.1/examples/jsm/controls/OrbitControls.js";
+    
+
+    const gui = new dat.GUI();
+
+
+    let graph_equation = "sin(1.5*(x*x+y*y))/1.5"; // Complex Example: "sin(x*5) * exp(x) * cos( y * sqrt(abs(y)) )"
+
+    let equation_box = gui.add({ 
+        "eq":  graph_equation,
+    }, "eq").name("Equation: z =");
+
+    equation_box.domElement.id = "eq_box";
+    
+    // // console.log(equation_box.domElement.children[0].value);
+    // // let inp_box = equation_box.domElement.children[0];
+
+    // // inp_box.setAttribute('size', inp_box.value.length);
+
+
+
+    let graphFolder = gui.addFolder("Graph");
+    let gridHelpFolder = gui.addFolder("Grid");
+
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0.5, 1, 1).setLength(8);
+    camera.lookAt(scene.position);
+    let renderer = new THREE.WebGLRenderer({
+        canvas: document.querySelector('#plot'),
+        antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x161616);
+    document.body.appendChild(renderer.domElement);
+    
+    let controls = new OrbitControls(camera, renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    
+    let grid = new THREE.GridHelper(5, 20, 0xffff00, 0xffff00);
+    let axe = new THREE.AxesHelper(3);
+    scene.add(grid, axe);
+
+
+    gridHelpFolder.add(grid, 'visible').name("Grid Visible");
+    gridHelpFolder.add(axe, 'visible').name("Axis Visible");
+    gridHelpFolder.addColor({"Grid Color": 0xffff00}, "Grid Color").onChange(function(value){
+        grid.material.color.set(value);
+    });
+    
+    let graphGeom = new THREE.PlaneGeometry(5, 5, 50, 50);
+    graphGeom.rotateX(Math.PI * -0.5);
+
+    let graphMat = new THREE.MeshNormalMaterial({side: THREE.DoubleSide, wireframe: false});
+    let graph = new THREE.Mesh(graphGeom, graphMat);
+
+    
+
+    for (let name of Object.getOwnPropertyNames(Math)) globalThis[name] = Math[name]; // Declare Math. as Globals
+    
+    function drawGraph(graphGeom, graph_equation) {
+        // // f(x,z)
+        try {
+            let pos = graphGeom.attributes.position;
+            for(let i = 0; i < pos.count; i++){
+                let x = pos.getX(i);
+                let y = pos.getZ(i);
+                let z = pos.getY(i);
+                pos.setY(i, eval(graph_equation) );
+            }
+            graphGeom.attributes.position.needsUpdate = true;
+            graphGeom.computeVertexNormals();
+        } catch (e) {
+            alert(e + "\n\nInvalid equation: \n" + graph_equation);
+        }
+    }
+
+    // function needsUpdate( material, geometry ) {
+    //     return function () {
+    //         // material.side = parseInt( material.side ); //Ensure number
+    //         material.needsUpdate = true;
+    //         geometry.attributes.position.needsUpdate = true;
+    //         geometry.attributes.normal.needsUpdate = true;
+    //         // geometry.attributes.color.needsUpdate = true;
+    //     };
+    // }
+
+    drawGraph(graphGeom, graph_equation); 
+
+    equation_box.onFinishChange(function (graph_equation) {
+        drawGraph(graphGeom, graph_equation);
+    });
+    
+
+    graphFolder.add(graphMat, "transparent");
+    graphFolder.add( graphMat, 'opacity', 0, 1 ).step( 0.01 );
+    // graphFolder.add(graph.geometry.parameters, "width", 1, 5).step(0.1);
+
+    let pltRot = graphFolder.addFolder("Rotate Plot")
+    pltRot.add(graph.rotation, "x", 0, Math.PI * 2).name("Rotate X");
+    pltRot.add(graph.rotation, "z", 0, Math.PI * 2).name("Rotate Y");
+    pltRot.add(graph.rotation, "y", 0, Math.PI * 2).name("Rotate Z");
+
+    // graphFolder.addColor({"Graph Color": 0xffffff}, "Graph Color").onChange(function(value){ graph.material.color.set(value); });
+
+    scene.add(graph);
+    
+
+    
+    window.addEventListener("resize", onResize);
+    
+    renderer.setAnimationLoop(_ => {
+      renderer.render(scene, camera);
+    })
+    
+    function onResize(event) {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    
+    </script>
+
+</body>
+</html>
